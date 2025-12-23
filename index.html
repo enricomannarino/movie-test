@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test dei Gusti Cinematografici</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+        .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin { animation: spin 1s linear infinite; }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+
+    <script>
+        const movies = [
+            { id: 1, title: "Il Padrino", year: 1972, img: "🎬" },
+            { id: 2, title: "Pulp Fiction", year: 1994, img: "💼" },
+            { id: 3, title: "Inception", year: 2010, img: "🌀" },
+            { id: 4, title: "La La Land", year: 2016, img: "🎭" },
+            { id: 5, title: "Parasite", year: 2019, img: "🏠" },
+            { id: 6, title: "Il Signore degli Anelli", year: 2001, img: "💍" },
+            { id: 7, title: "Matrix", year: 1999, img: "🕶️" },
+            { id: 8, title: "Forrest Gump", year: 1994, img: "🏃" },
+            { id: 9, title: "Interstellar", year: 2014, img: "🚀" },
+            { id: 10, title: "Blade Runner", year: 1982, img: "🌃" },
+            { id: 11, title: "La Vita è Bella", year: 1997, img: "🎪" },
+            { id: 12, title: "Schindler's List", year: 1993, img: "🕯️" },
+            { id: 13, title: "Il Cavaliere Oscuro", year: 2008, img: "🦇" },
+            { id: 14, title: "Shining", year: 1980, img: "🪓" },
+            { id: 15, title: "2001: Odissea nello Spazio", year: 1968, img: "🛸" }
+        ];
+
+        let state = {
+            mode: 'start',
+            myRatings: {},
+            userRatings: {},
+            currentIndex: 0,
+            slideDirection: '',
+            testId: '',
+            copied: false
+        };
+
+        function init() {
+            const params = new URLSearchParams(window.location.search);
+            const id = params.get('test');
+            if (id) {
+                state.testId = id;
+                loadCreatorRatings(id);
+            } else {
+                render();
+            }
+        }
+
+        function loadCreatorRatings(id) {
+            const saved = localStorage.getItem(`movie-test:${id}`);
+            if (saved) {
+                state.myRatings = JSON.parse(saved);
+                state.mode = 'rate';
+                render();
+            } else {
+                state.mode = 'error';
+                render();
+            }
+        }
+
+        function handleRating(rating) {
+            const currentMovie = movies[state.currentIndex];
+            
+            if (state.mode === 'create') {
+                state.myRatings[currentMovie.id] = rating;
+                state.slideDirection = 'left';
+                render();
+                
+                setTimeout(() => {
+                    if (state.currentIndex < movies.length - 1) {
+                        state.currentIndex++;
+                        state.slideDirection = '';
+                        render();
+                    } else {
+                        saveMyRatings();
+                    }
+                }, 300);
+            } else if (state.mode === 'rate') {
+                state.userRatings[currentMovie.id] = rating;
+                state.slideDirection = 'left';
+                render();
+                
+                setTimeout(() => {
+                    if (state.currentIndex < movies.length - 1) {
+                        state.currentIndex++;
+                        state.slideDirection = '';
+                        render();
+                    } else {
+                        state.mode = 'result';
+                        render();
+                    }
+                }, 300);
+            }
+        }
+
+        function saveMyRatings() {
+            const id = Math.random().toString(36).substring(2, 10);
+            state.testId = id;
+            localStorage.setItem(`movie-test:${id}`, JSON.stringify(state.myRatings));
+            state.mode = 'share';
+            render();
+        }
+
+        function copyLink() {
+            const link = `${window.location.origin}${window.location.pathname}?test=${state.testId}`;
+            navigator.clipboard.writeText(link);
+            state.copied = true;
+            render();
+            setTimeout(() => {
+                state.copied = false;
+                render();
+            }, 2000);
+        }
+
+        function calculateCompatibility() {
+            let totalDiff = 0;
+            let count = 0;
+
+            movies.forEach(movie => {
+                const myRate = state.myRatings[movie.id];
+                const userRate = state.userRatings[movie.id];
+                
+                if (myRate !== 0 && userRate !== 0) {
+                    totalDiff += Math.abs(myRate - userRate);
+                    count++;
+                }
+            });
+
+            if (count === 0) return 0;
+            const avgDiff = totalDiff / count;
+            const compatibility = Math.max(0, 100 - (avgDiff * 10));
+            return Math.round(compatibility);
+        }
+
+        function getCompatibilityMessage(score) {
+            if (score >= 90) return "Siamo anime gemelle cinematografiche! 💕 È come se vedessimo il mondo attraverso la stessa lente...";
+            if (score >= 75) return "C'è una bellissima sintonia tra noi! 🌟 I nostri cuori battono quasi allo stesso ritmo davanti allo schermo.";
+            if (score >= 60) return "Abbiamo molte cose in comune! 💫 Le nostre serate cinema insieme sarebbero perfette.";
+            if (score >= 40) return "Ci sono punti d'incontro interessanti... 🎬 Le nostre differenze ci renderebbero curiosi l'uno dell'altra.";
+            return "Abbiamo gusti molto diversi! 🎭 Ma sai cosa? Le discussioni più belle nascono dalle differenze...";
+        }
+
+        function render() {
+            const app = document.getElementById('app');
+            
+            if (state.mode === 'start') {
+                app.innerHTML = `
+                    <div class="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-800 to-pink-800 flex items-center justify-center p-4">
+                        <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-8 max-w-md w-full text-white shadow-2xl text-center">
+                            <div class="text-6xl mb-6">❤️</div>
+                            <h1 class="text-3xl font-bold mb-4">Test dei Gusti Cinematografici</h1>
+                            <p class="text-lg mb-8 opacity-90">
+                                Crea il tuo test personalizzato e condividilo con chi vuoi!
+                            </p>
+                            <button onclick="startTest()" class="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white py-4 px-8 rounded-2xl font-bold text-lg transition-all transform hover:scale-105 shadow-lg">
+                                Inizia il Test
+                            </button>
+                        </div>
+                    </div>
+                `;
+            } else if (state.mode === 'share') {
+                const link = `${window.location.origin}${window.location.pathname}?test=${state.testId}`;
+                app.innerHTML = `
+                    <div class="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-800 to-pink-800 flex items-center justify-center p-4">
+                        <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-8 max-w-md w-full text-white shadow-2xl">
+                            <div class="text-center mb-6">
+                                <div class="text-6xl mb-4 animate-pulse">❤️</div>
+                                <h2 class="text-3xl font-bold mb-4">Perfetto! 💕</h2>
+                                <p class="text-lg mb-6 opacity-90">
+                                    Ora invia questo link alla persona speciale per scoprire quanto siete compatibili!
+                                </p>
+                            </div>
+
+                            <div class="bg-white/20 rounded-2xl p-4 mb-4 break-all text-sm">
+                                ${link}
+                            </div>
+
+                            <button onclick="copyLink()" class="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white py-4 px-6 rounded-2xl font-bold transition-all transform hover:scale-105 shadow-lg">
+                                ${state.copied ? '✓ Copiato!' : '📋 Copia Link'}
+                            </button>
+
+                            <p class="text-center text-sm opacity-75 mt-4">
+                                Quando avrà completato il test, vedrete insieme il risultato!
+                            </p>
+                        </div>
+                    </div>
+                `;
+            } else if (state.mode === 'error') {
+                app.innerHTML = `
+                    <div class="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-800 to-pink-800 flex items-center justify-center p-4">
+                        <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-8 max-w-md w-full text-white shadow-2xl text-center">
+                            <h2 class="text-2xl font-bold mb-4">😕 Oops!</h2>
+                            <p class="text-lg mb-6 opacity-90">
+                                Questo link non è valido o è scaduto. Chiedi di crearne uno nuovo!
+                            </p>
+                        </div>
+                    </div>
+                `;
+            } else if (state.mode === 'result') {
+                const compatibility = calculateCompatibility();
+                const myCount = Object.values(state.myRatings).filter(r => r > 0).length;
+                const userCount = Object.values(state.userRatings).filter(r => r > 0).length;
+                
+                app.innerHTML = `
+                    <div class="min-h-screen bg-gradient-to-br from-purple-900 via-pink-800 to-red-900 flex items-center justify-center p-4">
+                        <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-8 max-w-md w-full text-white shadow-2xl">
+                            <div class="text-center mb-6">
+                                <div class="text-6xl mb-4 animate-pulse">❤️</div>
+                                <h2 class="text-3xl font-bold mb-4">Risultato</h2>
+                            </div>
+                            
+                            <div class="bg-white/20 rounded-2xl p-6 mb-6">
+                                <div class="text-6xl font-bold text-center mb-2">${compatibility}%</div>
+                                <div class="text-center text-lg opacity-90">Compatibilità</div>
+                            </div>
+
+                            <p class="text-lg text-center leading-relaxed mb-8 italic">
+                                ${getCompatibilityMessage(compatibility)}
+                            </p>
+
+                            <div class="grid grid-cols-2 gap-4 text-sm">
+                                <div class="bg-white/10 rounded-xl p-4 text-center">
+                                    <div class="text-2xl font-bold">${myCount}</div>
+                                    <div class="opacity-75">Film visti (creatore)</div>
+                                </div>
+                                <div class="bg-white/10 rounded-xl p-4 text-center">
+                                    <div class="text-2xl font-bold">${userCount}</div>
+                                    <div class="opacity-75">Film visti (tu)</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                const currentMovie = movies[state.currentIndex];
+                const progress = ((state.currentIndex + 1) / movies.length) * 100;
+                
+                app.innerHTML = `
+                    <div class="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-800 to-pink-800 flex items-center justify-center p-4">
+                        <div class="max-w-md w-full">
+                            <div class="text-center mb-6">
+                                <div class="text-5xl mb-3">🎬</div>
+                                <h1 class="text-2xl font-bold text-white mb-2">
+                                    ${state.mode === 'create' ? 'Inserisci i tuoi gusti' : 'Valuta i film'}
+                                </h1>
+                                <div class="text-white/80 text-sm">
+                                    Film ${state.currentIndex + 1} di ${movies.length}
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <div class="bg-white/20 rounded-full h-2 overflow-hidden">
+                                    <div class="bg-white h-full transition-all duration-300" style="width: ${progress}%"></div>
+                                </div>
+                            </div>
+
+                            <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-8 shadow-2xl transition-all duration-300 ${state.slideDirection === 'left' ? 'opacity-0' : 'opacity-100'}">
+                                <div class="text-center mb-8">
+                                    <div class="text-8xl mb-4">${currentMovie.img}</div>
+                                    <h2 class="text-3xl font-bold text-white mb-2">${currentMovie.title}</h2>
+                                    <p class="text-white/70 text-lg">${currentMovie.year}</p>
+                                </div>
+
+                                <div class="space-y-3">
+                                    <button onclick="handleRating(0)" class="w-full bg-white/20 hover:bg-white/30 text-white py-4 rounded-2xl font-semibold transition-all transform hover:scale-105">
+                                        Non l'ho visto
+                                    </button>
+                                    
+                                    <div class="grid grid-cols-5 gap-2">
+                                        ${[2, 4, 6, 8, 10].map(rating => `
+                                            <button onclick="handleRating(${rating})" class="bg-gradient-to-br from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white py-3 rounded-xl font-bold transition-all transform hover:scale-110">
+                                                ${rating}${rating === 10 ? '⭐' : ''}
+                                            </button>
+                                        `).join('')}
+                                    </div>
+                                    <div class="text-center text-white/60 text-xs">
+                                        Valuta da 2 a 10 (solo numeri pari)
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function startTest() {
+            state.mode = 'create';
+            state.currentIndex = 0;
+            render();
+        }
+
+        window.handleRating = handleRating;
+        window.copyLink = copyLink;
+        window.startTest = startTest;
+
+        init();
+    </script>
+</body>
+</html>
