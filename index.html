@@ -11,11 +11,6 @@
             50% { opacity: .5; }
         }
         .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-        .animate-spin { animation: spin 1s linear infinite; }
     </style>
 </head>
 <body>
@@ -40,91 +35,47 @@
             { id: 15, title: "2001: Odissea nello Spazio", year: 1968, img: "🛸" }
         ];
 
+        const MY_FIXED_RATINGS = {
+            1: 10, // Il Padrino
+            2: 7,  // Pulp Fiction
+            3: 8,  // Inception
+            4: 0,  // La La Land
+            5: 7,  // Parasite
+            6: 10, // Il Signore degli Anelli
+            7: 9,  // Matrix
+            8: 8,  // Forrest Gump
+            9: 8,  // Interstellar
+            10: 6, // Blade Runner
+            11: 7, // La Vita è Bella
+            12: 0, // Schindler's List
+            13: 8, // Il Cavaliere Oscuro
+            14: 9, // Shining
+            15: 0  // 2001
+        };
+
         let state = {
-            mode: 'start',
-            myRatings: {},
             userRatings: {},
             currentIndex: 0,
             slideDirection: '',
-            testId: '',
-            copied: false
+            showResult: false
         };
-
-        function init() {
-            const params = new URLSearchParams(window.location.search);
-            const id = params.get('test');
-            if (id) {
-                state.testId = id;
-                loadCreatorRatings(id);
-            } else {
-                render();
-            }
-        }
-
-        function loadCreatorRatings(id) {
-            const saved = localStorage.getItem(`movie-test:${id}`);
-            if (saved) {
-                state.myRatings = JSON.parse(saved);
-                state.mode = 'rate';
-                render();
-            } else {
-                state.mode = 'error';
-                render();
-            }
-        }
 
         function handleRating(rating) {
             const currentMovie = movies[state.currentIndex];
+            state.userRatings[currentMovie.id] = rating;
+            state.slideDirection = 'left';
+            render();
             
-            if (state.mode === 'create') {
-                state.myRatings[currentMovie.id] = rating;
-                state.slideDirection = 'left';
-                render();
-                
-                setTimeout(() => {
-                    if (state.currentIndex < movies.length - 1) {
-                        state.currentIndex++;
-                        state.slideDirection = '';
-                        render();
-                    } else {
-                        saveMyRatings();
-                    }
-                }, 300);
-            } else if (state.mode === 'rate') {
-                state.userRatings[currentMovie.id] = rating;
-                state.slideDirection = 'left';
-                render();
-                
-                setTimeout(() => {
-                    if (state.currentIndex < movies.length - 1) {
-                        state.currentIndex++;
-                        state.slideDirection = '';
-                        render();
-                    } else {
-                        state.mode = 'result';
-                        render();
-                    }
-                }, 300);
-            }
-        }
-
-        function saveMyRatings() {
-            const id = Math.random().toString(36).substring(2, 10);
-            state.testId = id;
-            localStorage.setItem(`movie-test:${id}`, JSON.stringify(state.myRatings));
-            state.mode = 'share';
-            render();
-        }
-
-        function copyLink() {
-            const link = `${window.location.origin}${window.location.pathname}?test=${state.testId}`;
-            navigator.clipboard.writeText(link);
-            state.copied = true;
-            render();
             setTimeout(() => {
-                state.copied = false;
-                render();
-            }, 2000);
+                if (state.currentIndex < movies.length - 1) {
+                    state.currentIndex++;
+                    state.slideDirection = '';
+                    render();
+                } else {
+                    state.showResult = true;
+                    render();
+                }
+            }, 300);
         }
 
         function calculateCompatibility() {
@@ -132,8 +83,8 @@
             let count = 0;
 
             movies.forEach(movie => {
-                const myRate = state.myRatings[movie.id];
-                const userRate = state.userRatings[movie.id];
+                const myRate = MY_FIXED_RATINGS[movie.id] || 0;
+                const userRate = state.userRatings[movie.id] || 0;
                 
                 if (myRate !== 0 && userRate !== 0) {
                     totalDiff += Math.abs(myRate - userRate);
@@ -144,7 +95,7 @@
             if (count === 0) return 0;
             const avgDiff = totalDiff / count;
             const compatibility = Math.max(0, 100 - (avgDiff * 10));
-            return Math.round(compatibility);
+            return Math.round(compatibility) || 0;
         }
 
         function getCompatibilityMessage(score) {
@@ -158,62 +109,9 @@
         function render() {
             const app = document.getElementById('app');
             
-            if (state.mode === 'start') {
-                app.innerHTML = `
-                    <div class="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-800 to-pink-800 flex items-center justify-center p-4">
-                        <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-8 max-w-md w-full text-white shadow-2xl text-center">
-                            <div class="text-6xl mb-6">❤️</div>
-                            <h1 class="text-3xl font-bold mb-4">Test dei Gusti Cinematografici</h1>
-                            <p class="text-lg mb-8 opacity-90">
-                                Crea il tuo test personalizzato e condividilo con chi vuoi!
-                            </p>
-                            <button onclick="startTest()" class="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white py-4 px-8 rounded-2xl font-bold text-lg transition-all transform hover:scale-105 shadow-lg">
-                                Inizia il Test
-                            </button>
-                        </div>
-                    </div>
-                `;
-            } else if (state.mode === 'share') {
-                const link = `${window.location.origin}${window.location.pathname}?test=${state.testId}`;
-                app.innerHTML = `
-                    <div class="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-800 to-pink-800 flex items-center justify-center p-4">
-                        <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-8 max-w-md w-full text-white shadow-2xl">
-                            <div class="text-center mb-6">
-                                <div class="text-6xl mb-4 animate-pulse">❤️</div>
-                                <h2 class="text-3xl font-bold mb-4">Perfetto! 💕</h2>
-                                <p class="text-lg mb-6 opacity-90">
-                                    Ora invia questo link alla persona speciale per scoprire quanto siete compatibili!
-                                </p>
-                            </div>
-
-                            <div class="bg-white/20 rounded-2xl p-4 mb-4 break-all text-sm">
-                                ${link}
-                            </div>
-
-                            <button onclick="copyLink()" class="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white py-4 px-6 rounded-2xl font-bold transition-all transform hover:scale-105 shadow-lg">
-                                ${state.copied ? '✓ Copiato!' : '📋 Copia Link'}
-                            </button>
-
-                            <p class="text-center text-sm opacity-75 mt-4">
-                                Quando avrà completato il test, vedrete insieme il risultato!
-                            </p>
-                        </div>
-                    </div>
-                `;
-            } else if (state.mode === 'error') {
-                app.innerHTML = `
-                    <div class="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-800 to-pink-800 flex items-center justify-center p-4">
-                        <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-8 max-w-md w-full text-white shadow-2xl text-center">
-                            <h2 class="text-2xl font-bold mb-4">😕 Oops!</h2>
-                            <p class="text-lg mb-6 opacity-90">
-                                Questo link non è valido o è scaduto. Chiedi di crearne uno nuovo!
-                            </p>
-                        </div>
-                    </div>
-                `;
-            } else if (state.mode === 'result') {
+            if (state.showResult) {
                 const compatibility = calculateCompatibility();
-                const myCount = Object.values(state.myRatings).filter(r => r > 0).length;
+                const myCount = Object.values(MY_FIXED_RATINGS).filter(r => r > 0).length;
                 const userCount = Object.values(state.userRatings).filter(r => r > 0).length;
                 
                 app.innerHTML = `
@@ -236,11 +134,11 @@
                             <div class="grid grid-cols-2 gap-4 text-sm">
                                 <div class="bg-white/10 rounded-xl p-4 text-center">
                                     <div class="text-2xl font-bold">${myCount}</div>
-                                    <div class="opacity-75">Film visti (creatore)</div>
+                                    <div class="opacity-75">Miei film visti</div>
                                 </div>
                                 <div class="bg-white/10 rounded-xl p-4 text-center">
                                     <div class="text-2xl font-bold">${userCount}</div>
-                                    <div class="opacity-75">Film visti (tu)</div>
+                                    <div class="opacity-75">Tuoi film visti</div>
                                 </div>
                             </div>
                         </div>
@@ -255,9 +153,7 @@
                         <div class="max-w-md w-full">
                             <div class="text-center mb-6">
                                 <div class="text-5xl mb-3">🎬</div>
-                                <h1 class="text-2xl font-bold text-white mb-2">
-                                    ${state.mode === 'create' ? 'Inserisci i tuoi gusti' : 'Valuta i film'}
-                                </h1>
+                                <h1 class="text-2xl font-bold text-white mb-2">Valuta i film</h1>
                                 <div class="text-white/80 text-sm">
                                     Film ${state.currentIndex + 1} di ${movies.length}
                                 </div>
@@ -281,15 +177,22 @@
                                         Non l'ho visto
                                     </button>
                                     
+                                    <div class="grid grid-cols-5 gap-2 mb-2">
+                                        ${[1, 2, 3, 4, 5].map(rating => `
+                                            <button onclick="handleRating(${rating})" class="bg-gradient-to-br from-red-500 to-orange-600 hover:from-red-600 hover:to-orange-700 text-white py-3 rounded-xl font-bold transition-all transform hover:scale-110">
+                                                ${rating}
+                                            </button>
+                                        `).join('')}
+                                    </div>
                                     <div class="grid grid-cols-5 gap-2">
-                                        ${[2, 4, 6, 8, 10].map(rating => `
+                                        ${[6, 7, 8, 9, 10].map(rating => `
                                             <button onclick="handleRating(${rating})" class="bg-gradient-to-br from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white py-3 rounded-xl font-bold transition-all transform hover:scale-110">
                                                 ${rating}${rating === 10 ? '⭐' : ''}
                                             </button>
                                         `).join('')}
                                     </div>
-                                    <div class="text-center text-white/60 text-xs">
-                                        Valuta da 2 a 10 (solo numeri pari)
+                                    <div class="text-center text-white/60 text-xs mt-2">
+                                        Valuta da 1 a 10
                                     </div>
                                 </div>
                             </div>
@@ -299,17 +202,8 @@
             }
         }
 
-        function startTest() {
-            state.mode = 'create';
-            state.currentIndex = 0;
-            render();
-        }
-
         window.handleRating = handleRating;
-        window.copyLink = copyLink;
-        window.startTest = startTest;
-
-        init();
+        render();
     </script>
 </body>
 </html>
